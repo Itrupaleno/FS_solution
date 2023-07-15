@@ -88,6 +88,7 @@ test_orders.append(test_order)
 test_orders.append(test_order1)
 for i in range(len(test_orders)):
     orders_dict[i+1] = test_orders[i]
+accepted_tokens = set()
 
 if os.path.exists("reestr.json"):  # Download current state of reestr
     f = open("reestr.json")
@@ -99,14 +100,14 @@ else:
 class MyHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
-        global test_order
+        global orders_dict
         if self.path == "/api/orders/items": # Block of code executes when server should
-            if test_order: 
-                self.send_response(200)          # give orders to asu_azs.
+            if not (self.headers["Authorization"] in accepted_tokens):# give orders to asu_azs.
+                self.send_response(200)          
                 self.send_header("Message", "Request for giving the orders accepted. Orders sended.")
                 self.end_headers()
                 self.wfile.write(bytes(json.dumps(orders_dict), "utf-8"))
-                test_order = None
+                accepted_tokens.add(self.headers["Authorization"])
             else:
                 self.send_response(404)
                 self.send_header("Message", "There aren't any new orders.")

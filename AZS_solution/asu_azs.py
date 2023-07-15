@@ -62,6 +62,9 @@ How to work with this system:
 -- If you want to send a configuration of fuel station you should
    write this command: "send configuration"
 
+-- If you want to stop the programm you should write this command:
+   "stop"
+
 P.S. input updates every 3 seconds.
 """
 cur_orders_queue = queue.deque()
@@ -78,6 +81,17 @@ while flag:
             continue
         elif command == "send configuration":
             state = 3
+            continue
+        elif command == "stop":
+            if os.path.exists("state.txt") and os.path.exists("orders.txt"):
+                os.remove("state.txt")
+                os.remove("orders.txt")
+            elif os.path.exists("orders.txt"):
+                os.remove("orders.txt")
+            elif os.path.exists("state.txt"):
+                os.remove("state.txt")
+            flag = False
+            print("Stop process finished.")
             continue
         else:
             if os.path.exists("orders.txt"):
@@ -136,6 +150,8 @@ while flag:
             state_txt.write(f"auth_flag: {auth_flag}\n")
             state_txt.write(f"auth_token: {auth_token}\n")
             state_txt.close()
+            if os.path.exists("orders.txt"):
+                os.remove("orders.txt")
             state = 2
             continue
     elif state == 2:     # state 2 is for sending a price list of current fuel station

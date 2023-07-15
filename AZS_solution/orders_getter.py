@@ -23,6 +23,9 @@ while True:
         token = file.readline()[12:-1]
         if len(token) == 4:
             token = None
+    else:
+        token_flag = False
+        token = None
         
     if token_flag:
         req = requests.request("GET", "http://localhost:8091/api/orders/items",
