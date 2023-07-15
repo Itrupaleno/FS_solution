@@ -6,7 +6,7 @@ Instruction:
 
    P.S. It is just a console app without any interface. All instructions about usage you will find after execution asu_azs.py
 2. How to execute:
-   - You should just execute all files in this consequence:
+   - You should follow this consequence:
     1. server_pass.py
     2. flashpay.py
     3. orders_getter.py
