@@ -82,7 +82,7 @@ test_order1 = {
     ]
 }
 
-orders_dict = dict()
+orders_dict = dict() # Initialize dict of test orders here.
 test_orders = list()
 test_orders.append(test_order)
 test_orders.append(test_order1)
@@ -103,12 +103,12 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
         global orders_dict
         if self.path == "/api/orders/items": # Block of code executes when server should
             if not (self.headers["Authorization"] in accepted_tokens):# give orders to asu_azs.
-                self.send_response(200)          
+                self.send_response(200)# Just send orders if user want to get it firstly          
                 self.send_header("Message", "Request for giving the orders accepted. Orders sended.")
                 self.end_headers()
                 self.wfile.write(bytes(json.dumps(orders_dict), "utf-8"))
-                accepted_tokens.add(self.headers["Authorization"])
-            else:
+                accepted_tokens.add(self.headers["Authorization"])# Save information about user (that programm has sended 
+            else:                                                 # orders already for this token)
                 self.send_response(404)
                 self.send_header("Message", "There aren't any new orders.")
                 self.end_headers()

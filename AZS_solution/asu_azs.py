@@ -11,14 +11,14 @@ auth_flag = False # just an authorization flag
 auth_token = None # here will be token of a fuel station after authorization
 state = 0 # The main regulator of programm behaviour
 
-if os.path.exists("state.txt"):
+if os.path.exists("state.txt"):# Initialize state.txt here(it needs for orders_getter.py)
     os.remove("state.txt")
 state_txt = open("state.txt", "x")
 state_txt.write(f"auth_flag: {auth_flag}\n")
 state_txt.write(f"auth_token: {auth_token}\n")
 state_txt.close()
 
-instruction_link = "https://___________"                                # Some constants here.
+instruction_link = "https://___________"     # Some constants here.
 passwd_server_link = "http://localhost:8080/api/auth?login={login}"
 flashpay_auth_link = "http://localhost:8091/api/auth"
 flashpay_price_link = "http://localhost:8091/api/price"
@@ -67,7 +67,8 @@ How to work with this system:
 
 P.S. input updates every 3 seconds.
 """
-cur_orders_queue = queue.deque()
+cur_orders_queue = queue.deque() # Here will be orders from flashpay,
+                                 # sended by orders_getter.py
 
 while flag:
     if state == 0: # state 0 is used when user should give
@@ -82,7 +83,7 @@ while flag:
         elif command == "send configuration":
             state = 3
             continue
-        elif command == "stop":
+        elif command == "stop":  # Delete some not needed data here.(state and orders)
             if os.path.exists("state.txt") and os.path.exists("orders.txt"):
                 os.remove("state.txt")
                 os.remove("orders.txt")
@@ -94,15 +95,15 @@ while flag:
             print("Stop process finished.")
             continue
         else:
-            if os.path.exists("orders.txt"):
-                file = open("orders.txt", "r")
+            if os.path.exists("orders.txt"): # Here we check is orders.txt already exists
+                file = open("orders.txt", "r")# If it is so we get orders in our programm
                 lines = file.readlines()
                 lines = list(map(lambda x: x[:-1], lines))
                 for order in lines:
                     if order not in cur_orders_queue:
                         cur_orders_queue.appendleft(order)
-                if len(cur_orders_queue) != 0:
-                    #state = 4
+                if len(cur_orders_queue) != 0: # Here we change our state to 4,
+                    #state = 4                 # to start orders executing process
                     continue
     elif state == 1: # state 1 --> authorization state all actions for completed authorization
         if auth_flag: # Check has user already been authorized or not.
@@ -145,13 +146,13 @@ while flag:
             print("Authorization was successfully completed.")
             auth_flag = True
             auth_token = req.headers["Authorization"]
-            os.remove("state.txt")
-            state_txt = open("state.txt", "x")
+            os.remove("state.txt")            # Change state.txt. After that orders_getter
+            state_txt = open("state.txt", "x")# will start asking flashpay about orders
             state_txt.write(f"auth_flag: {auth_flag}\n")
             state_txt.write(f"auth_token: {auth_token}\n")
             state_txt.close()
-            if os.path.exists("orders.txt"):
-                os.remove("orders.txt")
+            if os.path.exists("orders.txt"): # If we was changing the user we delete his
+                os.remove("orders.txt")      # orders here.
             state = 2
             continue
     elif state == 2:     # state 2 is for sending a price list of current fuel station
