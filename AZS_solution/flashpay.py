@@ -237,8 +237,6 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
         return
 
 
-
-
 def main():
     print("Starting serving on port 8091...")
 
