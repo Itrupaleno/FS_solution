@@ -6,9 +6,10 @@ Instruction:
    
    *P.S. It is just a console app without any interface. All instructions about usage you will find after execution asu_azs.py*
 2. How to execute:
+   - First of all install this packages: `pip install pytimedinput` and `pip install requests`
    - **EXECUTE ALL FILES FROM DIRECTORY WHERE THEY ARE.**
    - You should follow this consequence:
-     1. server_pass.py
-     2. flashpay.py
-     3. orders_getter.py
-     4. asu_azs.py
+     1) server_pass.py
+     2) flashpay.py
+     3) orders_getter.py
+     4) asu_azs.py
