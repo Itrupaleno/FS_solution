@@ -198,8 +198,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header("Configuration", "YES")
             self.end_headers()
         elif self.path == "/api/station":
-            cur_headers = dict(self.headers)
-            cur_token = cur_headers["Authorization"]
+            cur_token = self.headers["Authorization"]
 
             content_len = int(self.headers["Content-Length"])
             content = str(self.rfile.read(content_len))
@@ -233,7 +232,18 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
             
             self.send_response(200)
             self.send_header("Message", "Configuration accepted successfully.")
-            self.end_headers()   
+            self.end_headers()
+        elif self.path == "/api/orders/items":
+            cur_token = self.headers["Authorization"]
+
+            content_len = int(self.headers["Content-Length"])
+            content = str(self.rfile.read(content_len))
+            content = str(urllib.parse.unquote_plus(content))[2:-1]
+            columns_status = json.loads(content)
+
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(bytes("Columns status accepted successfully.", "utf-8"))
         return
 
 

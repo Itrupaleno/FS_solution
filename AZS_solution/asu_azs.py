@@ -19,10 +19,39 @@ state_txt.write(f"auth_token: {auth_token}\n")
 state_txt.close()
 
 instruction_link = "https://___________"     # Some constants here.
+base_flashpay_link = "http://localhost:8091"
 passwd_server_link = "http://localhost:8080/api/auth?login={login}"
-flashpay_auth_link = "http://localhost:8091/api/auth"
-flashpay_price_link = "http://localhost:8091/api/price"
-flashpay_config_link = "http://localhost:8091/api/station"
+flashpay_auth_link = base_flashpay_link + "/api/auth"
+flashpay_price_link = base_flashpay_link + "/api/price"
+flashpay_config_link = base_flashpay_link + "/api/station"
+flashpay_orders_link = base_flashpay_link + "/api/orders/items"
+
+columns_status = {
+    "Columns": {
+        1: {
+            "status": "Free",
+        },
+        2: {
+            "status": "Unavailable",
+            "errorMessage": "Column is not availible now.",
+        },
+        3: {
+            "status": "Fueling",
+            "litre": 5.67,
+            "fuelId": "a92",
+            "basePriceFuel": 45.23,
+            "sum": 256.45
+        },
+        4: {
+            "status": "Completed",
+            "extendedId": "1237hJhuy23ehnkJ003",
+            "litre": 34.45,
+            "fuelId": "a95",
+            "basePriceFuel": 49.12,
+            "sum": 1692.18
+        }
+    }
+}
 
 test_config = {
     "StationExtendedId": "00001",
@@ -103,7 +132,7 @@ while flag:
                     if order not in cur_orders_queue:
                         cur_orders_queue.appendleft(order)
                 if len(cur_orders_queue) != 0: # Here we change our state to 4,
-                    #state = 4                 # to start orders executing process
+                    state = 4                 # to start orders executing process
                     continue
     elif state == 1: # state 1 --> authorization state all actions for completed authorization
         if auth_flag: # Check has user already been authorized or not.
@@ -189,7 +218,14 @@ while flag:
             state = 0
             continue
     elif state == 4: # This code executes when programm get orders.
-        pass
+        print("New orders accepted. Starting filling process.")
+        req = requests.request("POST", flashpay_orders_link, json=columns_status, headers={"Authorization": auth_token})
+        if req.status_code == 200:
+            print("[200]", req.text)
+        else:
+            print("Error: columns status wasn't sended successfully.")
+        state = 0
+        continue
 
 
         
