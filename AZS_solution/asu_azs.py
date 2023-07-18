@@ -1,6 +1,8 @@
-import os
 import queue
+import random
 import json
+import os
+import time
 import urllib
 import requests
 import pytimedinput
@@ -25,6 +27,12 @@ flashpay_auth_link = base_flashpay_link + "/api/auth"
 flashpay_price_link = base_flashpay_link + "/api/price"
 flashpay_config_link = base_flashpay_link + "/api/station"
 flashpay_orders_link = base_flashpay_link + "/api/orders/items"
+flashpay_order_canceled = base_flashpay_link + "/api/orders/canceled?orderId={ordeId}&reason={reason}&extendedOrderId={extendedOrderId}&extendedDate={extendedDate}"
+flashpay_order_accept = base_flashpay_link + "/api/orders/accept?orderId={ordeId}"
+flashpay_order_waitingrefueling = base_flashpay_link + "/api/orders/waitingrefueling?orderId={ordeId}"
+flashpay_order_fueling = base_flashpay_link + "/api/orders/fueling?orderId={ordeId}"
+flashpay_order_completed = base_flashpay_link + "/api/orders/completed?orderId={ordeId}&litre={litre}&extendedOrderId={extendedOrderId}&extendedDate={extendedDate}"
+flashpay_orders_report = base_flashpay_link + "/api/orders/report"
 
 columns_status = {
     "Columns": {
@@ -97,8 +105,10 @@ How to work with this system:
 P.S. input updates every 3 seconds.
 """
 cur_orders_queue = queue.deque() # Here will be orders from flashpay,
-                                 # sended by orders_getter.py
+completed_orders = list()        # sended by orders_getter.py
+canceled_orders = list()
 
+sdate = time.asctime(time.localtime())
 while flag:
     if state == 0: # state 0 is used when user should give
         print(base_message) # commands for programm
@@ -129,10 +139,12 @@ while flag:
                 lines = file.readlines()
                 lines = list(map(lambda x: x[:-1], lines))
                 for order in lines:
-                    if order not in cur_orders_queue:
+                    if order not in cur_orders_queue and order not in completed_orders and order not in canceled_orders:
                         cur_orders_queue.appendleft(order)
+                else:
+                    os.remove("orders.txt")
                 if len(cur_orders_queue) != 0: # Here we change our state to 4,
-                    state = 4                 # to start orders executing process
+                    state = 4                  # to start orders executing process
                     continue
     elif state == 1: # state 1 --> authorization state all actions for completed authorization
         if auth_flag: # Check has user already been authorized or not.
@@ -218,13 +230,69 @@ while flag:
             state = 0
             continue
     elif state == 4: # This code executes when programm get orders.
-        print("New orders accepted. Starting filling process.")
-        req = requests.request("POST", flashpay_orders_link, json=columns_status, headers={"Authorization": auth_token})
+        print("New orders accepted. Starting filling process.")# Here asu just send current columns status.
+        req = requests.request("GET", flashpay_orders_link, json=columns_status, headers={"Authorization": auth_token})
         if req.status_code == 200:
             print("[200]", req.text)
         else:
             print("Error: columns status wasn't sended successfully.")
-        state = 0
+        
+        saved_states = set()
+        saved_states.add(0)
+        for _ in range(len(cur_orders_queue)):
+            current_order = cur_orders_queue.pop()
+            current_order = json.loads(current_order)
+            column_id = current_order["orders"][0]["columnId"]
+            if column_id not in test_config["Columns"]:
+                req = requests.request("GET", flashpay_order_canceled.format(ordeId=current_order["orders"][0]["id"], reason="Column is not exists.", extendedOrderId=random.randint(1_000_000, 9_999_999), extendedDate=time.asctime(time.localtime())), headers={"Authorization": auth_token})
+                canceled_orders.append(json.dumps(current_order))
+                continue
+            elif columns_status["Columns"][column_id]["status"] == "Unavailable":
+                req = requests.request("GET", flashpay_order_canceled.format(ordeId=current_order["orders"][0]["id"], reason="Column unavailible.", extendedOrderId=random.randint(1_000_000, 9_999_999), extendedDate=time.asctime(time.localtime())), headers={"Authorization": auth_token})
+                canceled_orders.append(json.dumps(current_order))
+                continue
+            elif current_order["orders"][0]["fuelId"] not in test_config["Columns"][column_id]["Fuels"]:
+                req = requests.request("GET", flashpay_order_canceled.format(ordeId=current_order["orders"][0]["id"], reason="Choosed fuel isn't in column.", extendedOrderId=random.randint(1_000_000, 9_999_999), extendedDate=time.asctime(time.localtime())), headers={"Authorization": auth_token})
+                canceled_orders.append(json.dumps(current_order))
+                continue
+            elif current_order["orders"][0]["priceFuel"] != test_plist[current_order["orders"][0]["fuelId"]]:
+                req = requests.request("GET", flashpay_order_canceled.format(ordeId=current_order["orders"][0]["id"], reason="Price of fuel isn't actual.", extendedOrderId=random.randint(1_000_000, 9_999_999), extendedDate=time.asctime(time.localtime())), headers={"Authorization": auth_token})
+                saved_states.add(2)
+                canceled_orders.append(json.dumps(current_order))
+                continue
+            else:
+                req = requests.request("GET", flashpay_order_accept, headers={"Authorization": auth_token})
+                if req.status_code != 200:
+                    req = requests.request("GET", flashpay_order_canceled.format(ordeId=current_order["orders"][0]["id"], reason="ASU system didn't get 200 OK on step \"Accept\".", extendedOrderId=random.randint(1_000_000, 9_999_999), extendedDate=time.asctime(time.localtime())), headers={"Authorization": auth_token})
+                    canceled_orders.append(json.dumps(current_order))
+                    continue
+                if columns_status[column_id]["status"] != "Free":
+                    req = requests.request("GET", flashpay_order_waitingrefueling.format(ordeId=current_order["orders"][0]["id"]), headers={"Authorization": auth_token})
+                    if req.status_code != 200:
+                        req = requests.request("GET", flashpay_order_canceled.format(ordeId=current_order["orders"][0]["id"], reason="ASU system didn't get 200 OK on step \"WaitingRefueling\".", extendedOrderId=random.randint(1_000_000, 9_999_999), extendedDate=time.asctime(time.localtime())), headers={"Authorization": auth_token})
+                        canceled_orders.append(json.dumps(current_order))
+                        continue
+                    columns_status[column_id]["status"] == "Free"
+                    for key in columns_status:
+                        if key != "status":
+                            del columns_status[key]
+                req = requests.request("GET", flashpay_order_fueling.format(ordeId=current_order["orders"][0]["id"]), headers={"Authorization": auth_token})
+                if req.status_code != 200:
+                    req = requests.request("GET", flashpay_order_canceled.format(ordeId=current_order["orders"][0]["id"], reason="ASU system didn't get 200 OK on step \"WaitingRefueling\".", extendedOrderId=random.randint(1_000_000, 9_999_999), extendedDate=time.asctime(time.localtime())), headers={"Authorization": auth_token})
+                    canceled_orders.append(json.dumps(current_order))
+                    continue
+                else:
+                    time.sleep(45)
+                req = requests.request("GET", flashpay_order_completed.format(ordeId=current_order["orders"][0]["id"], litre=current_order["orders"][0]["litre"], extendedOrderId=random.randint(1_000_000, 9_999_999), extendedDate=time.asctime(time.localtime())), headers={"Authorization": auth_token})
+                while req.status_code != 200:
+                    continue
+                completed_orders.append(json.dumps(current_order))
+        else:
+            state = max(saved_states)
+            #req = requests.request("POST", flashpay_orders_report, params={"sdate": sdate, "edate": time.asctime(time.localtime()), "page": 0}, headers={"Authorization": auth_token})
+            #if req.status_code == 200:
+            #    print(req.status_code, req.text)
+            #    report = req.json()
         continue
 
 

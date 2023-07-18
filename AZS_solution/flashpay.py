@@ -101,7 +101,18 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         global orders_dict
-        if self.path == "/api/orders/items": # Block of code executes when server should
+        if self.path == "/api/orders/items" and self.headers["Content-Length"]: # Block of code executes when server should
+            cur_token = self.headers["Authorization"]
+            
+            content_len = int(self.headers["Content-Length"])
+            content = str(self.rfile.read(content_len))
+            content = str(urllib.parse.unquote_plus(content))[2:-1]
+            columns_status = json.loads(content)
+            
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(bytes("Columns status accepted.", "utf-8"))
+        elif self.path == "/api/orders/items":
             if not (self.headers["Authorization"] in accepted_tokens):# give orders to asu_azs.
                 self.send_response(200)# Just send orders if user want to get it firstly          
                 self.send_header("Message", "Request for giving the orders accepted. Orders sended.")
@@ -112,6 +123,67 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.send_header("Message", "There aren't any new orders.")
                 self.end_headers()
+        elif "/api/orders/canceled" in self.path:
+            cur_token = self.headers["Authorization"]
+
+            content = str(urllib.parse.unquote_plus(self.path))
+            content = content.replace("=", "!")
+            content = content.replace("&", "!")
+            content = content.split("!")
+            canceled_status = {
+                "orderId": content[1], 
+                "reason": content[3], 
+                "extendedOrderId": content[5],
+                "extendedDate": content[7]
+            }
+
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(bytes("Order canceled successfully.", "utf-8"))
+        elif self.path == "/api/orders/accept":
+            cur_token = self.headers["Authorization"]
+
+            content = str(urllib.parse.unquote_plus(self.path))
+            order_id = content.split("=")[1]
+
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(bytes("Status saved.", "utf-8"))
+        elif self.path == "/api/orders/waitingrefueling":
+            cur_token = self.headers["Authorization"]
+
+            content = str(urllib.parse.unquote_plus(self.path))
+            order_id = content.split("=")[1]
+
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(bytes("Status saved. Waiting...", "utf-8"))
+        elif self.path == "/api/orders/fueling":
+            cur_token = self.headers["Authorization"]
+
+            content = str(urllib.parse.unquote_plus(self.path))
+            order_id = content.split("=")[1]
+
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(bytes("Status saved. Waiting...", "utf-8"))
+        elif self.path == "/api/orders/completed":
+            cur_token = self.headers["Authorization"]
+
+            content = str(urllib.parse.unquote_plus(self.path))
+            content = content.replace("=", "!")
+            content = content.replace("&", "!")
+            content = content.split("!")
+            completed_status = {
+                "orderId": content[1], 
+                "litre": content[3], 
+                "extendedOrderId": content[5],
+                "extendedDate": content[7]
+            }
+
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(bytes("Order completed successfully.", "utf-8"))
         return
 
 
@@ -244,6 +316,8 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.end_headers()
             self.wfile.write(bytes("Columns status accepted successfully.", "utf-8"))
+        elif self.path == "/api/orders/report":
+            pass
         return
 
 
